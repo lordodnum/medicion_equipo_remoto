@@ -10,4 +10,5 @@ registros/*.log
 Thumbs.db
 desktop.ini
 *.bak
+*.bak_old
 *.tmp
