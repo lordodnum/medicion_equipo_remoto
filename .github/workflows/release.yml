@@ -1,0 +1,63 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (ej 1.1.0)'
+        required: false
+        default: '1.1.0'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PowerShell
+        shell: pwsh
+        run: $PSVersionTable
+
+      - name: Build EXE
+        shell: pwsh
+        run: |
+          $ver = "${{ inputs.version }}"
+          if ($env:GITHUB_REF -match 'refs/tags/v(.+)') { $ver = $Matches[1] }
+          if (-not $ver) { $ver = "1.1.0" }
+          Write-Host "Version $ver"
+          ./build/build.ps1 -Version $ver
+
+      - name: Prepare ZIP
+        shell: pwsh
+        run: |
+          $ver = "${{ inputs.version }}"
+          if ($env:GITHUB_REF -match 'refs/tags/v(.+)') { $ver = $Matches[1] }
+          if (-not $ver) { $ver = "1.1.0" }
+          $zip = "dist/MedicionEquipo_v$ver.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path dist/MedicionEquipo.exe, LEEME_EJECUTIVOS.md, README.md -DestinationPath $zip -Force
+          $exeHash = (Get-FileHash dist/MedicionEquipo.exe -Algorithm SHA256).Hash
+          $zipHash = (Get-FileHash $zip -Algorithm SHA256).Hash
+          @"
+          # Checksums $ver
+          $exeHash  MedicionEquipo.exe
+          $zipHash  MedicionEquipo_v$ver.zip
+          "@ | Set-Content dist/checksums.txt -Encoding ascii
+          Get-Content dist/checksums.txt
+          dir dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/MedicionEquipo.exe
+            dist/MedicionEquipo_v*.zip
+            dist/checksums.txt
+            dist/MedicionEquipo.exe.sha256
+          generate_release_notes: true
+          fail_on_unmatched_files: false
