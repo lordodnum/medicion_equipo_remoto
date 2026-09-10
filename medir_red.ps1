@@ -1,19 +1,20 @@
 # ============================================================
 #  MEDICION RED + SISTEMA - equipos remotos (CRM VoIP)
-#  Version: 1.1.0  |  Build: 2026-09-07
+#  Version: 1.2.0  |  Build: 2026-09-10
 #  Uso EXE: doble clic en MedicionEquipo.exe
 #  Uso PS1: powershell -NoProfile -ExecutionPolicy Bypass -File medir_red.ps1
 # ============================================================
 $ErrorActionPreference = 'Continue'
-$Version = '1.1.0'
+$Version = '1.2.0'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
-$ThrPing   = 100
-$ThrJitter = 30
-$ThrLoss   = 1
-$ThrUp     = 1
-$ThrRamMin = 4
-$ThrRamOpt = 8
+# --- Umbrales (editables) ---
+# Veredicto BINARIO: si falla UN umbral cualquiera -> NO APTO.
+$ThrPing   = 100   # ms
+$ThrJitter = 30    # ms
+$ThrLoss   = 1     # %
+$ThrUp     = 1     # Mbps de subida
+$ThrRamMin = 8     # GB INSTALADOS (memoria fisica, no la visible del SO)
 
 function Get-ScriptDir {
     if ($PSScriptRoot -and (Test-Path $PSScriptRoot)) { return $PSScriptRoot }
@@ -154,6 +155,17 @@ $cpuLoad = [math]::Round($cpuLoad, 0)
 $ramTotal = [math]::Round($os.TotalVisibleMemorySize / 1MB, 1)
 $ramFree  = [math]::Round($os.FreePhysicalMemory / 1MB, 1)
 $ramPct   = if ($ramTotal -gt 0) { [math]::Round(($ramTotal - $ramFree) / $ramTotal * 100, 0) } else { 0 }
+
+# RAM INSTALADA (memoria fisica): es la que se compara contra $ThrRamMin.
+# TotalVisibleMemorySize descuenta lo reservado por hardware, asi que un equipo de
+# 8 GB reales informa ~7.8 GB y fallaria por redondeo si se usara esa cifra.
+$ramInstalada = 0
+try {
+    $sumCap = (Get-CimInstance Win32_PhysicalMemory -ErrorAction Stop | Measure-Object -Property Capacity -Sum).Sum
+    if ($sumCap -gt 0) { $ramInstalada = [math]::Round($sumCap / 1GB, 1) }
+} catch {}
+if ($ramInstalada -le 0) { $ramInstalada = $ramTotal }
+
 $upHours  = [math]::Round(((Get-Date) - $os.LastBootUpTime).TotalHours, 0)
 
 $disk = Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' | Sort-Object Size -Descending | Select-Object -First 1
@@ -166,18 +178,16 @@ try { $pd = Get-PhysicalDisk | Select-Object -First 1 -ErrorAction Stop; if ($pd
 
 $top = (Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 | ForEach-Object { $_.ProcessName + '  CPU=' + [math]::Round($_.CPU,0) + 's  Mem=' + [math]::Round($_.WS/1MB) + ' MB' })
 
+# --- Evaluacion: veredicto BINARIO (un solo umbral fallido => NO APTO) ---
 $checks = @()
 if ($ping   -lt $ThrPing)   { $checks += 'Ping OK' } else { $checks += 'Ping ALTO' }
 if ($jitter -lt $ThrJitter) { $checks += 'Jitter OK' } else { $checks += 'Jitter ALTO' }
 if ($loss   -lt $ThrLoss)   { $checks += 'Perdida OK' } else { $checks += 'Perdida ALTA' }
 if ($upM    -ge $ThrUp)     { $checks += 'Subida OK' } else { $checks += 'Subida BAJA' }
-if ($ramTotal -ge $ThrRamOpt) { $checks += 'RAM OK' }
-elseif ($ramTotal -ge $ThrRamMin) { $checks += 'RAM MINIMO' }
-else { $checks += 'RAM BAJA' }
+if ($ramInstalada -ge $ThrRamMin) { $checks += 'RAM OK' } else { $checks += 'RAM BAJA' }
 $warn = ($checks | Where-Object { $_ -match 'ALTO|ALTA|BAJA|MINIMO' }).Count
-if ($warn -eq 0) { $verdict = 'APTO'; $color = 'Green' }
-elseif ($warn -eq 1) { $verdict = 'CON RIESGO'; $color = 'Yellow' }
-else { $verdict = 'NO APTO'; $color = 'Red' }
+if ($warn -eq 0) { $verdict = 'APTO';    $color = 'Green' }
+else             { $verdict = 'NO APTO'; $color = 'Red' }
 
 try { $userName = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name } catch { $userName = "$env:USERDOMAIN\$env:USERNAME" }
 $line = '=' * 78
@@ -194,7 +204,7 @@ Write-Host ('   Servidor: ' + $serverTxt)
 Write-Host ''
 Write-Host ' :: SISTEMA'
 Write-Host ('   CPU     : ' + $cpu.Name + '  (' + $cores + ' nucleos, uso ' + $cpuLoad + '%)')
-Write-Host ('   RAM     : ' + $ramTotal + ' GB total - libre ' + $ramFree + ' GB (uso ' + $ramPct + '%)')
+Write-Host ('   RAM     : ' + $ramInstalada + ' GB instalados (' + $ramTotal + ' GB visibles, libre ' + $ramFree + ' GB, uso ' + $ramPct + '%)')
 Write-Host ('   Disco   : ' + $diskSizeGB + ' GB, libre ' + $diskFreeGB + ' GB (' + $diskPct + '% usado) [' + $mediaType + ']')
 Write-Host ('   Uptime  : ' + $upHours + ' horas')
 Write-Host ''
@@ -206,11 +216,12 @@ Write-Host ''
 Write-Host ('  >>>  VEREDICTO: ' + $verdict + '  <<<') -ForegroundColor $color
 Write-Host $line
 Write-Host ''
-Write-Host '  Semaforo:  APTO (verde)  |  CON RIESGO (amarillo)  |  NO APTO (rojo)' -ForegroundColor Gray
+Write-Host ('  APTO = cumple todo: ping < ' + $ThrPing + ' ms, jitter < ' + $ThrJitter + ' ms, perdida < ' + $ThrLoss + ' %, subida >= ' + $ThrUp + ' Mbps, RAM >= ' + $ThrRamMin + ' GB.') -ForegroundColor Gray
+Write-Host '  Si falla cualquiera de esos, el veredicto es NO APTO.' -ForegroundColor Gray
 
 $logDir = Get-LogDir $scriptDir
-$logFile = Join-Path $logDir ($env:COMPUTERNAME + '_' + (Get-Date -Format 'yyyyMMdd_HHmm') + '.txt')
-$log = 'MEDICION EQUIPO: ' + $env:COMPUTERNAME + '   Usuario: ' + $userName + "`n" + 'Version: ' + $Version + "`n" + 'Fecha: ' + (Get-Date -Format 'yyyy-MM-dd HH:mm') + "`n" + 'RED    ping=' + $ping + ' ms  jitter=' + $jitter + ' ms  perdida=' + $loss + '%  bajada=' + $downM + ' Mbps  subida=' + $upM + ' Mbps  ISP=' + $isp + "`n" + 'SERVIDOR ' + $serverTxt + "`n" + 'CPU    ' + $cpu.Name + ' | ' + $cores + ' nucleos | uso ' + $cpuLoad + '%' + "`n" + 'RAM    ' + $ramTotal + ' GB total | libre ' + $ramFree + ' GB | uso ' + $ramPct + '%' + "`n" + 'DISCO  ' + $diskSizeGB + ' GB | libre ' + $diskFreeGB + ' GB | ' + $diskPct + '% | ' + $mediaType + "`n" + 'UPTIME ' + $upHours + ' horas' + "`n" + 'CHECKS ' + ($checks -join ' | ') + "`n" + 'VEREDICTO ' + $verdict + "`n"
+$logFile = Join-Path $logDir ($env:COMPUTERNAME + '_' + (Get-Date -Format 'yyyyMMdd_HHmmss') + '.txt')
+$log = 'MEDICION EQUIPO: ' + $env:COMPUTERNAME + '   Usuario: ' + $userName + "`n" + 'Version: ' + $Version + "`n" + 'Fecha: ' + (Get-Date -Format 'yyyy-MM-dd HH:mm') + "`n" + 'RED    ping=' + $ping + ' ms  jitter=' + $jitter + ' ms  perdida=' + $loss + '%  bajada=' + $downM + ' Mbps  subida=' + $upM + ' Mbps  ISP=' + $isp + "`n" + 'SERVIDOR ' + $serverTxt + "`n" + 'CPU    ' + $cpu.Name + ' | ' + $cores + ' nucleos | uso ' + $cpuLoad + '%' + "`n" + 'RAM    ' + $ramInstalada + ' GB instalados | ' + $ramTotal + ' GB visibles | libre ' + $ramFree + ' GB | uso ' + $ramPct + '%' + "`n" + 'DISCO  ' + $diskSizeGB + ' GB | libre ' + $diskFreeGB + ' GB | ' + $diskPct + '% | ' + $mediaType + "`n" + 'UPTIME ' + $upHours + ' horas' + "`n" + 'CHECKS ' + ($checks -join ' | ') + "`n" + 'VEREDICTO ' + $verdict + "`n"
 try {
     Set-Content -Path $logFile -Value $log -Encoding UTF8 -ErrorAction Stop
     Write-Host ''

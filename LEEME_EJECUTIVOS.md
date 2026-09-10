@@ -14,8 +14,7 @@ Guárdalo en Escritorio o Descargas y haz **doble clic** en el icono. No necesit
 ## Paso 3 — Lee el veredicto
 
 * **APTO (verde)** -> Sirve para CRM.
-* **CON RIESGO (amarillo)** -> Sirve pero revisar (ej RAM 4GB o jitter alto).
-* **NO APTO (rojo)** -> No sirve, 2+ fallos.
+* **NO APTO (rojo)** -> No sirve: falla uno o más requisitos (el detalle te dice cuál).
 
 Debajo del veredicto sale `< Ping OK | Jitter ALTO | RAM OK >` que dice el porqué.
 

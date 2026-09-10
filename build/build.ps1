@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 param(
-    [string]$Version = '1.1.0',
+    [string]$Version = '1.2.0',
     [string]$Src = "$PSScriptRoot/../src/medir_red.ps1",
     [string]$OutDir = "$PSScriptRoot/../dist",
     [string]$Icon = "$PSScriptRoot/../assets/icon.ico"

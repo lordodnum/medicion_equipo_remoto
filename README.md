@@ -1,6 +1,6 @@
 # Medición Red + Sistema — CRM VoIP
 
-Script/exe que en ~15-20s reporta red y sistema con veredicto semáforo para CRM con llamadas IP.
+Script/exe que en ~15-20s reporta red y sistema con veredicto binario (APTO / NO APTO) para CRM con llamadas IP.
 
 ## Para ejecutivos — 1 clic
 
@@ -21,7 +21,7 @@ registros/             # logs por equipo/fecha (gitignore)
 
 ### Build local (Windows)
 ```powershell
-./build/build.ps1 -Version 1.1.0
+./build/build.ps1 -Version 1.2.0
 ./dist/MedicionEquipo.exe
 ```
 
@@ -29,7 +29,7 @@ Requiere `Install-Module ps2exe -Scope CurrentUser -Force`.
 
 ### Release
 ```bash
-git tag v1.1.0 && git push origin v1.1.0
+git tag v1.2.0 && git push origin v1.2.0
 # GitHub Actions compila EXE + ZIP + checksums y publica Release
 ```
 
@@ -37,8 +37,10 @@ Manual dispatch: Actions -> release -> Run workflow.
 
 ### Qué reporta
 **RED (Ookla CLI):** Ping <100ms, Jitter <30ms, Pérdida <1%, Subida ≥1 Mbps
-**SISTEMA:** CPU, RAM, Disco SSD/HDD, Uptime, Top5 procesos
-**Veredicto:** APTO (0 fallos) / CON RIESGO (1) / NO APTO (2+)
+**SISTEMA:** CPU, RAM (instalada/visible/libre), Disco SSD/HDD, Uptime, Top5 procesos
+**Veredicto:** binario — APTO (cumple todo) / NO APTO (falla uno o más umbrales)
+
+El umbral de RAM se evalúa contra la memoria **instalada** (`Win32_PhysicalMemory`), no contra la visible del SO: un equipo de 8 GB reales reporta ~7.8 GB visibles y si no, fallaría por redondeo.
 
 Umbrales editables al inicio de `src/medir_red.ps1` (`$Thr*`).
 
@@ -46,7 +48,8 @@ Umbrales editables al inicio de `src/medir_red.ps1` (`$Thr*`).
 * `$PSScriptRoot` fallback a `Process.MainModule.FileName` para ser portable.
 * `speedtest.exe` se busca junto al EXE; si no está lo descarga a `%TEMP%` (TLS1.2).
 * Log fallback: `registros/` -> `Desktop\registros_medicion` -> `%TEMP%`.
+* Nombre del log: `EQUIPO_yyyyMMdd_HHmmss.txt` (con segundos, para no sobrescribir si se corre dos veces seguidas).
 * Sin `requireAdmin`, sin firma (SmartScreen bypass documentado).
 
 ### Legacy
-`medir.bat` aún funciona: si existe `MedicionEquipo.exe` lo lanza, si no cae a `src/medir_red.ps1`.
+`medir.bat` aún funciona: si existe `MedicionEquipo.exe` lo lanza, si no cae a `src/medir_red.ps1` (y a `medir_red.ps1` en la raíz).

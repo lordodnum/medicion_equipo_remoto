@@ -1,9 +1,9 @@
 # Medición Red + Sistema para equipos remotos (CRM con llamadas IP)
 
 Script que se ejecuta en el equipo remoto y en ~15-20 s muestra el estado de
-la red y del sistema, con un veredicto (semáforo) para saber si el equipo es
-apto para el CRM. Reemplaza la espera del Administrador de tareas y de
-fast.com.
+la red y del sistema, con un veredicto binario (APTO / NO APTO) para saber si
+el equipo sirve para el CRM. Reemplaza la espera del Administrador de tareas
+y de fast.com.
 
 ## Qué reporta
 
@@ -16,17 +16,18 @@ RED (Ookla Speedtest CLI)
 
 SISTEMA (PowerShell)
     CPU       modelo, núcleos, uso %
-    RAM       total, libre, uso %
+    RAM       instalada, visible por el SO, libre, uso %
     Disco     tamaño, usado %, y tipo (SSD/HDD)
     Uptime    horas encendido
     Top 5     procesos que consumen más CPU
 
-## Veredicto (semáforo)
+## Veredicto (binario)
 
-  APTO         (verde)    -> el equipo cumple TODOS los umbrales. Sirve.
-  CON RIESGO   (amarillo) -> 1 umbral al límite (ej. RAM 4 GB o jitter alto).
-                             Sirve, pero conviene revisarlo.
-  NO APTO      (rojo)     -> 2 o más umbrales superados. No es apto.
+  APTO      (verde) -> cumple TODOS los umbrales. Sirve para el CRM.
+  NO APTO   (rojo)  -> falla uno o más umbrales. No sirve.
+
+No hay zona intermedia: basta que falle un solo umbral (por ejemplo RAM menor
+a 8 GB, o jitter alto) para que el veredicto sea NO APTO.
 
 Antes del veredicto sale una línea tipo: < Ping OK | Jitter ALTO | RAM OK >
 que indica exactamente qué pasó y qué no, para que sepas el motivo.
@@ -46,7 +47,12 @@ que indica exactamente qué pasó y qué no, para que sepas el motivo.
     Jitter < 30 ms         (VoIP: <20 ideal)
     Pérdida < 1 %
     Subida >= 1 Mbps       (mínimo para softphone)
-    RAM >= 4 GB (>=8 recomendado)
+    RAM >= 8 GB            (memoria INSTALADA, no la que ve el SO)
+
+Nota sobre la RAM: el umbral se evalúa contra la memoria física instalada
+(Win32_PhysicalMemory), porque un equipo de 8 GB reales el SO lo reporta como
+~7.8 GB. Si se comparara con la cifra visible, un equipo de 8 GB quedaría
+como NO APTO por redondeo.
 
 Ajusta estos valores en las variables $Thr* de medir_red.ps1 si tu plan/CRM
 exige más.
