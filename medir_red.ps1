@@ -49,38 +49,49 @@ function Get-LogDir($baseDir) {
 function Get-Auriculares {
     # Detecta auriculares/headset conectados (jack 3.5mm, USB y Bluetooth).
     #
-    # METODO 1 — CoreAudio API: enumera los endpoints de render. Cuando el jack
-    # de 3.5mm detecta auriculares, Windows renombra el endpoint a
-    # "Auriculares (Realtek...)" — pero Win32_PnPEntity NO cambia, asi que la
-    # deteccion por PnP no funciona en ese caso (el PnP sigue viendo "Altavoces").
+    # METODO 1 — CoreAudio API: enumera los endpoints de render + verifica el
+    # endpoint default. Detecta jack 3.5mm (renombra a "Auriculares"),
+    # USB Audio (adaptadores genericos "USB Audio Device"), y Bluetooth.
+    # Tambien verifica si el endpoint default es USB/Audio — si lo es y no
+    # matcheo por palabra clave, aun asi lo cuenta (en call center, un
+    # dispositivo de audio USB como default SIEMPRE es un headset).
     #
-    # METODO 2 — PnP fallback: cubre auriculares USB/Bluetooth que aparecen como
-    # dispositivos MEDIA independientes con nombre que indica auriculares.
+    # METODO 2 — PnP fallback: cubre dispositivos MEDIA independientes.
     #
     # Devuelve lista de objetos {Name, Manufacturer, DeviceID} o $null.
-    $clave = 'Headph|Headset|Auriculares|Diadema|Hands-Free|Est[eé]reo'
+    $clave = 'Headph|Headset|Auriculares|Diadema|Hands-Free|Est[eé]reo|USB Audio'
 
-    # --- CoreAudio (endpoint enumeration, funciona con jack 3.5mm) ---
+    # --- CoreAudio (endpoint enumeration + default endpoint) ---
     try {
         $cs = @'
 using System; using System.Collections.Generic; using System.Runtime.InteropServices;
 namespace AD {
   [ComImport,Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]class E{}
-  [ComImport,Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")][InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]interface IE{void EnumAudioEndpoints(int a,int b,out IC c);}
+  [ComImport,Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")][InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]interface IE{void EnumAudioEndpoints(int a,int b,out IC c);void GetDefaultAudioEndpoint(int a,int b,out ID c);}
   [ComImport,Guid("0BD7A8BE-C131-4403-8840-B3F74E080646")][InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]interface IC{int GetCount();object Item(int n);}
   [ComImport,Guid("D666063F-1587-4E43-81F1-B948E807363F")][InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]interface ID{void OpenPropertyStore(int a,out IP b);void GetId(out string a);void GetState(out int a);}
   [ComImport,Guid("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99")][InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]interface IP{void GetCount(out int a);void GetAt(int a,out PK b);void GetValue(ref PK a,out PV b);}
   [StructLayout(LayoutKind.Sequential)]struct PK{public Guid fmtid;public int pid;}
   [StructLayout(LayoutKind.Sequential)]struct PV{public ushort vt;public ushort r1,r2,r3;public IntPtr val;}
-  public class H{public static string[] Names(){var r=new List<string>();try{var en=(IE)new E();IC c;en.EnumAudioEndpoints(0,1,out c);int n=c.GetCount();for(int i=0;i<n;i++){var d=(ID)c.Item(i);IP s;d.OpenPropertyStore(0,out s);var k=new PK{fmtid=new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"),pid=14};PV v;s.GetValue(ref k,out v);if(v.val!=IntPtr.Zero){string nm=Marshal.PtrToStringUni(v.val);if(!string.IsNullOrEmpty(nm))r.Add(nm);}}}catch{}return r.ToArray();}}
+  public class H{
+    public static string[] Names(){var r=new List<string>();try{var en=(IE)new E();IC c;en.EnumAudioEndpoints(0,1,out c);int n=c.GetCount();for(int i=0;i<n;i++){var d=(ID)c.Item(i);IP s;d.OpenPropertyStore(0,out s);var k=new PK{fmtid=new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"),pid=14};PV v;s.GetValue(ref k,out v);if(v.val!=IntPtr.Zero){string nm=Marshal.PtrToStringUni(v.val);if(!string.IsNullOrEmpty(nm))r.Add(nm);}}}catch{}return r.ToArray();}}
+    public static string DefaultName(){try{var en=(IE)new E();ID d;en.GetDefaultAudioEndpoint(0,0,out d);IP s;d.OpenPropertyStore(0,out s);var k=new PK{fmtid=new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"),pid=14};PV v;s.GetValue(ref k,out v);if(v.val!=IntPtr.Zero){string nm=Marshal.PtrToStringUni(v.val);if(!string.IsNullOrEmpty(nm))return nm;}}catch{}return"";}
+  }
 }
 '@
         Add-Type -TypeDefinition $cs -ErrorAction SilentlyContinue
         $endpoints = [AD.H]::Names()
+        $default = [AD.H]::DefaultName()
         $aus = @($endpoints | Where-Object { $_ -match $clave })
+        # Fallback: si el endpoint default es USB/audio pero no matcheo por
+        # palabra clave, lo cuenta — en call center, USB audio = headset.
+        if ($aus.Count -eq 0 -and $default -and $default -match 'USB|Audio Device') {
+            $aus = @($default)
+        }
         if ($aus.Count -gt 0) {
             return $aus | ForEach-Object {
-                [pscustomobject]@{ Name = $_; Manufacturer = 'CoreAudio'; DeviceID = 'endpoint' }
+                $src = if ($_ -eq $default) { 'CoreAudio (default)' } else { 'CoreAudio' }
+                [pscustomobject]@{ Name = $_; Manufacturer = $src; DeviceID = 'endpoint' }
             }
         }
     } catch {}
