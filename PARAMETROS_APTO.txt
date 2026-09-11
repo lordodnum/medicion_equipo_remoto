@@ -1,0 +1,38 @@
+PARAMETROS DE EVALUACION - PC APTO / NO APTO PARA CRM VoIP
+Script: Medicion Equipo (v1.3.0)
+===============================================================
+
+Un PC es APTO solo si cumple TODOS los parametros siguientes.
+Si falla UNO o mas, el resultado es NO APTO (no hay estado intermedio).
+
+RED  (medida con el CLI oficial de Ookla Speedtest)
+---------------------------------------------------
+  Ping (latencia)      : menos de 100 ms        -> OK   (ideal < 50 ms)
+  Jitter               : menos de 30 ms         -> OK
+  Perdida de paquetes  : menos de 1 %           -> OK
+  Subida               : mayor o igual a 1 Mbps -> OK   (minimo para softphone)
+
+SISTEMA
+---------------------------------------------------
+  RAM                : mayor o igual a 8 GB INSTALADOS -> OK
+                       (se mide la memoria fisica instalada, no la que ve el
+                        sistema operativo; asi un PC de 8 GB reales que muestra
+                        7.8 GB visibles no queda como NO APTO por redondeo)
+
+DATOS QUE SE REPORTAN PERO NO DECIDEN EL VEREDICTO (solo informativos)
+---------------------------------------------------
+  CPU      : modelo, numero de nucleos y uso en %
+  Disco    : tamano total, espacio libre y tipo (SSD/HDD)
+  Uptime   : horas encendido
+  Top 5    : los 5 procesos que mas CPU consumen
+
+COMO LEER EL RESULTADO
+---------------------------------------------------
+- VEREDICTO APTO   (verde) : cumple todos los parametros.
+- VEREDICTO NO APTO (rojo): falla uno o mas.
+- Junto al veredicto se imprime una linea por check, por ejemplo:
+    "Ping OK | Jitter ALTO | RAM OK"
+  que indica exactamente que parametro no se cumplio.
+
+NOTA: todos estos valores son configurables al inicio del script
+($ThrPing, $ThrJitter, $ThrLoss, $ThrUp, $ThrRamMin).

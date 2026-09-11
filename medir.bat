@@ -1,5 +1,5 @@
 @echo off
-title Medicion Red/Sistema v1.2.0
+title Medicion Red/Sistema v1.3.0
 if exist "%~dp0MedicionEquipo.exe" (
   start "" "%~dp0MedicionEquipo.exe"
   exit /b

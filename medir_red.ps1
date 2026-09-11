@@ -1,11 +1,11 @@
 # ============================================================
 #  MEDICION RED + SISTEMA - equipos remotos (CRM VoIP)
-#  Version: 1.2.0  |  Build: 2026-09-10
+#  Version: 1.3.0  |  Build: 2026-09-11
 #  Uso EXE: doble clic en MedicionEquipo.exe
 #  Uso PS1: powershell -NoProfile -ExecutionPolicy Bypass -File medir_red.ps1
 # ============================================================
 $ErrorActionPreference = 'Continue'
-$Version = '1.2.0'
+$Version = '1.3.0'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 # --- Umbrales (editables) ---
@@ -44,6 +44,18 @@ function Get-LogDir($baseDir) {
         } catch {}
     }
     return $candidates[0]
+}
+
+function Get-Auriculares {
+    # Detecta auriculares/headset conectados: dispositivos de la clase MEDIA
+    # (audio) cuyo nombre lo indique, en varios idiomas. Devuelve la lista de
+    # dispositivos coincidentes (Name, Manufacturer, DeviceID) o $null si no hay.
+    try {
+        $audio = @(Get-CimInstance Win32_PnPEntity -ErrorAction Stop | Where-Object { $_.PNPClass -eq 'MEDIA' -and $_.Name })
+    } catch { return $null }
+    $aus = @($audio | Where-Object { $_.Name -match 'Headph|Headset|Auriculares|Diadema|Hands-Free|Est[eé]reo' })
+    if ($aus.Count -gt 0) { return $aus }
+    return $null
 }
 
 function Pause-Exit($code = 0) {
@@ -179,13 +191,15 @@ try { $pd = Get-PhysicalDisk | Select-Object -First 1 -ErrorAction Stop; if ($pd
 $top = (Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 | ForEach-Object { $_.ProcessName + '  CPU=' + [math]::Round($_.CPU,0) + 's  Mem=' + [math]::Round($_.WS/1MB) + ' MB' })
 
 # --- Evaluacion: veredicto BINARIO (un solo umbral fallido => NO APTO) ---
+$auriculares = Get-Auriculares
 $checks = @()
 if ($ping   -lt $ThrPing)   { $checks += 'Ping OK' } else { $checks += 'Ping ALTO' }
 if ($jitter -lt $ThrJitter) { $checks += 'Jitter OK' } else { $checks += 'Jitter ALTO' }
 if ($loss   -lt $ThrLoss)   { $checks += 'Perdida OK' } else { $checks += 'Perdida ALTA' }
 if ($upM    -ge $ThrUp)     { $checks += 'Subida OK' } else { $checks += 'Subida BAJA' }
 if ($ramInstalada -ge $ThrRamMin) { $checks += 'RAM OK' } else { $checks += 'RAM BAJA' }
-$warn = ($checks | Where-Object { $_ -match 'ALTO|ALTA|BAJA|MINIMO' }).Count
+if ($auriculares) { $checks += 'Audio OK' } else { $checks += 'Audio FALTA' }
+$warn = ($checks | Where-Object { $_ -match 'ALTO|ALTA|BAJA|MINIMO|FALTA' }).Count
 if ($warn -eq 0) { $verdict = 'APTO';    $color = 'Green' }
 else             { $verdict = 'NO APTO'; $color = 'Red' }
 
@@ -208,6 +222,13 @@ Write-Host ('   RAM     : ' + $ramInstalada + ' GB instalados (' + $ramTotal + '
 Write-Host ('   Disco   : ' + $diskSizeGB + ' GB, libre ' + $diskFreeGB + ' GB (' + $diskPct + '% usado) [' + $mediaType + ']')
 Write-Host ('   Uptime  : ' + $upHours + ' horas')
 Write-Host ''
+Write-Host ' :: AUDIO (auriculares/headset)'
+if ($auriculares) {
+    $auriculares | ForEach-Object { Write-Host ('   OK  ' + $_.Name) ; Write-Host ('       ident: ' + $_.Manufacturer) }
+} else {
+    Write-Host ('   NO se detectaron auriculares/headset conectados') -ForegroundColor Red
+}
+Write-Host ''
 Write-Host ' :: PROCESOS TOP (CPU)'
 $top | ForEach-Object { Write-Host ('   ' + $_) }
 Write-Host ''
@@ -216,12 +237,16 @@ Write-Host ''
 Write-Host ('  >>>  VEREDICTO: ' + $verdict + '  <<<') -ForegroundColor $color
 Write-Host $line
 Write-Host ''
-Write-Host ('  APTO = cumple todo: ping < ' + $ThrPing + ' ms, jitter < ' + $ThrJitter + ' ms, perdida < ' + $ThrLoss + ' %, subida >= ' + $ThrUp + ' Mbps, RAM >= ' + $ThrRamMin + ' GB.') -ForegroundColor Gray
+Write-Host ('  APTO = cumple todo: ping < ' + $ThrPing + ' ms, jitter < ' + $ThrJitter + ' ms, perdida < ' + $ThrLoss + ' %, subida >= ' + $ThrUp + ' Mbps, RAM >= ' + $ThrRamMin + ' GB, auriculares conectados.') -ForegroundColor Gray
 Write-Host '  Si falla cualquiera de esos, el veredicto es NO APTO.' -ForegroundColor Gray
 
 $logDir = Get-LogDir $scriptDir
 $logFile = Join-Path $logDir ($env:COMPUTERNAME + '_' + (Get-Date -Format 'yyyyMMdd_HHmmss') + '.txt')
-$log = 'MEDICION EQUIPO: ' + $env:COMPUTERNAME + '   Usuario: ' + $userName + "`n" + 'Version: ' + $Version + "`n" + 'Fecha: ' + (Get-Date -Format 'yyyy-MM-dd HH:mm') + "`n" + 'RED    ping=' + $ping + ' ms  jitter=' + $jitter + ' ms  perdida=' + $loss + '%  bajada=' + $downM + ' Mbps  subida=' + $upM + ' Mbps  ISP=' + $isp + "`n" + 'SERVIDOR ' + $serverTxt + "`n" + 'CPU    ' + $cpu.Name + ' | ' + $cores + ' nucleos | uso ' + $cpuLoad + '%' + "`n" + 'RAM    ' + $ramInstalada + ' GB instalados | ' + $ramTotal + ' GB visibles | libre ' + $ramFree + ' GB | uso ' + $ramPct + '%' + "`n" + 'DISCO  ' + $diskSizeGB + ' GB | libre ' + $diskFreeGB + ' GB | ' + $diskPct + '% | ' + $mediaType + "`n" + 'UPTIME ' + $upHours + ' horas' + "`n" + 'CHECKS ' + ($checks -join ' | ') + "`n" + 'VEREDICTO ' + $verdict + "`n"
+$aurTxt = 'SIN AURICULARES'
+if ($auriculares) {
+    $aurTxt = ($auriculares | ForEach-Object { $_.Name + ' | ' + $_.Manufacturer + ' | ' + $_.DeviceID }) -join ' // '
+}
+$log = 'MEDICION EQUIPO: ' + $env:COMPUTERNAME + '   Usuario: ' + $userName + "`n" + 'Version: ' + $Version + "`n" + 'Fecha: ' + (Get-Date -Format 'yyyy-MM-dd HH:mm') + "`n" + 'RED    ping=' + $ping + ' ms  jitter=' + $jitter + ' ms  perdida=' + $loss + '%  bajada=' + $downM + ' Mbps  subida=' + $upM + ' Mbps  ISP=' + $isp + "`n" + 'SERVIDOR ' + $serverTxt + "`n" + 'CPU    ' + $cpu.Name + ' | ' + $cores + ' nucleos | uso ' + $cpuLoad + '%' + "`n" + 'RAM    ' + $ramInstalada + ' GB instalados | ' + $ramTotal + ' GB visibles | libre ' + $ramFree + ' GB | uso ' + $ramPct + '%' + "`n" + 'DISCO  ' + $diskSizeGB + ' GB | libre ' + $diskFreeGB + ' GB | ' + $diskPct + '% | ' + $mediaType + "`n" + 'UPTIME ' + $upHours + ' horas' + "`n" + 'AUDIO  ' + $aurTxt + "`n" + 'CHECKS ' + ($checks -join ' | ') + "`n" + 'VEREDICTO ' + $verdict + "`n"
 try {
     Set-Content -Path $logFile -Value $log -Encoding UTF8 -ErrorAction Stop
     Write-Host ''
