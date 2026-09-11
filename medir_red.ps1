@@ -1,11 +1,11 @@
 # ============================================================
 #  MEDICION RED + SISTEMA - equipos remotos (CRM VoIP)
-#  Version: 1.3.0  |  Build: 2026-09-11
+#  Version: 1.3.1  |  Build: 2026-09-11
 #  Uso EXE: doble clic en MedicionEquipo.exe
 #  Uso PS1: powershell -NoProfile -ExecutionPolicy Bypass -File medir_red.ps1
 # ============================================================
 $ErrorActionPreference = 'Continue'
-$Version = '1.3.0'
+$Version = '1.3.1'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 # --- Umbrales (editables) ---

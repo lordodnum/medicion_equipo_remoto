@@ -21,7 +21,7 @@ registros/             # logs por equipo/fecha (gitignore)
 
 ### Build local (Windows)
 ```powershell
-./build/build.ps1 -Version 1.3.0
+./build/build.ps1 -Version 1.3.1
 ./dist/MedicionEquipo.exe
 ```
 
@@ -29,7 +29,7 @@ Requiere `Install-Module ps2exe -Scope CurrentUser -Force`.
 
 ### Release
 ```bash
-git tag v1.3.0 && git push origin v1.3.0
+git tag v1.3.1 && git push origin v1.3.1
 # GitHub Actions compila EXE + ZIP + checksums y publica Release
 ```
 

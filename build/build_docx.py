@@ -114,7 +114,7 @@ add_para("Los umbrales se pueden ajustar editando las variables $ThrPing, $ThrJi
 
 add_heading("4. Instrucciones de uso", level=1, color=RGBColor(0x1F,0x4E,0x78))
 add_heading("4.1 Para el usuario final (1 clic, sin conocimientos técnicos)", level=2)
-add_para("Paso 1 — Descargar: abrir el link sin login https://github.com/lordodnum/medicion_equipo_remoto/releases/latest/download/MedicionEquipo.exe y guardar el archivo en Escritorio o Descargas. Alternativa ZIP: https://github.com/lordodnum/medicion_equipo_remoto/releases/latest/download/MedicionEquipo_v1.3.0.zip", bullet=False)
+add_para("Paso 1 — Descargar: abrir el link sin login https://github.com/lordodnum/medicion_equipo_remoto/releases/latest/download/MedicionEquipo.exe y guardar el archivo en Escritorio o Descargas. Alternativa ZIP: https://github.com/lordodnum/medicion_equipo_remoto/releases/latest/download/MedicionEquipo_v1.3.1.zip", bullet=False)
 add_para("Si aparece SmartScreen (Windows protege su PC): hacer clic en Más información y luego en Ejecutar de todas formas. Es normal por ser una aplicación interna sin firma digital.", italic=True, size=9)
 add_para("Paso 2 — Ejecutar: doble clic en MedicionEquipo.exe (icono semáforo). No requiere instalación ni permisos de administrador.", bullet=False)
 add_para("La primera vez puede tardar 15 a 60 segundos porque descarga speedtest.exe y mide la conexión. Se muestra en pantalla: ISP, ping, jitter, pérdida, bajada, subida, servidor, CPU, RAM, disco, uptime y top 5 procesos.", bullet=False)
@@ -142,8 +142,8 @@ add_para("Conectividad: acceso a internet para descargar speedtest.exe la primer
 add_para("Antivirus: algunos pueden marcar el EXE por no estar firmado; agregar excepción si es necesario.", bullet=True)
 
 add_heading("7. Distribución y actualización", level=1, color=RGBColor(0x1F,0x4E,0x78))
-add_para("El canal oficial es GitHub Releases. Link recomendado para compartir: https://github.com/lordodnum/medicion_equipo_remoto/releases/latest/download/MedicionEquipo.exe (siempre última versión). Link versionado: https://github.com/lordodnum/medicion_equipo_remoto/releases/download/v1.3.0/MedicionEquipo.exe")
-add_para("El ZIP MedicionEquipo_v1.3.0.zip incluye el EXE y las guías LEEME_EJECUTIVOS.md y README.md. Los checksums SHA256 se publican como checksums.txt y MedicionEquipo.exe.sha256 para verificación de integridad.")
+add_para("El canal oficial es GitHub Releases. Link recomendado para compartir: https://github.com/lordodnum/medicion_equipo_remoto/releases/latest/download/MedicionEquipo.exe (siempre última versión). Link versionado: https://github.com/lordodnum/medicion_equipo_remoto/releases/download/v1.3.1/MedicionEquipo.exe")
+add_para("El ZIP MedicionEquipo_v1.3.1.zip incluye el EXE y las guías LEEME_EJECUTIVOS.md y README.md. Los checksums SHA256 se publican como checksums.txt y MedicionEquipo.exe.sha256 para verificación de integridad.")
 add_para("El repositorio es público para descarga sin cuenta de GitHub. El código fuente está en src/medir_red.ps1 y el script de compilación en build/build.ps1.")
 
 add_heading("8. Seguridad y soporte", level=1, color=RGBColor(0x1F,0x4E,0x78))
@@ -155,9 +155,9 @@ add_para("Soporte: solicitar al usuario el archivo EQUIPO_*.txt de la carpeta re
 add_heading("9. Conclusión", level=1, color=RGBColor(0x1F,0x4E,0x78))
 add_para("La herramienta entrega en segundos un diagnóstico claro y accionable sobre la aptitud de un equipo remoto para operar el CRM con VoIP, con veredicto semáforo, detalle de cada métrica y registro para soporte. Su distribución sin instalación y su link sin login la hacen operativa para usuarios sin conocimientos técnicos, mientras que su código y Release centralizados permiten a la jefatura y al área técnica mantener criterio y trazabilidad.")
 
-add_para("Documento generado automáticamente desde el repositorio medicion_equipo_remoto v1.3.0 — para consultas contactar al área de soporte.", italic=True, size=9, color=RGBColor(0x70,0x70,0x70), align=WD_ALIGN_PARAGRAPH.CENTER)
+add_para("Documento generado automáticamente desde el repositorio medicion_equipo_remoto v1.3.1 — para consultas contactar al área de soporte.", italic=True, size=9, color=RGBColor(0x70,0x70,0x70), align=WD_ALIGN_PARAGRAPH.CENTER)
 add_para("Fin del documento.", italic=True, size=9, color=RGBColor(0x70,0x70,0x70), align=WD_ALIGN_PARAGRAPH.CENTER)
 
-out = "dist/Resumen_Jefatura_MedicionEquipo_v1.3.0.docx"
+out = "dist/Resumen_Jefatura_MedicionEquipo_v1.3.1.docx"
 doc.save(out)
 print(f"Generado {out}")

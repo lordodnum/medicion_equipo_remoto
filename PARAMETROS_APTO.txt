@@ -1,5 +1,5 @@
 PARAMETROS DE EVALUACION - PC APTO / NO APTO PARA CRM VoIP
-Script: Medicion Equipo (v1.3.0)
+Script: Medicion Equipo (v1.3.1)
 ===============================================================
 
 Un PC es APTO solo si cumple TODOS los parametros siguientes.
